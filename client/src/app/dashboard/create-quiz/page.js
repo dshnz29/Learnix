@@ -24,10 +24,24 @@ export default function CreateQuiz() {
   const [activeTab, setActiveTab] = useState('auto');
   const [step, setStep] = useState(1);
   const [avatarIndex, setAvatarIndex] = useState(0);
+  const [questions, setQuestions] = useState([]);
+  const [title, setTitle] = useState('');
+  const [file, setFile] = useState(null);
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     if (e.target.files && e.target.files[0]) {
       setIsUploading(true);
+      setFile(e.target.files[0]);
+  
+      // Convert to base64 and log it
+      try {
+        const base64 = await fileToBase64(e.target.files[0]);
+        console.log('Converted base64:', base64); // This will log the base64 string
+      } catch (error) {
+        console.error('Error converting file:', error);
+      }
+  
+      // Simulate upload progress (keep your existing progress logic)
       let progress = 0;
       const interval = setInterval(() => {
         progress += 10;
@@ -40,22 +54,52 @@ export default function CreateQuiz() {
       }, 300);
     }
   };
+  const generateQuizTitle = (filename) => {
+    if (!filename) return 'Untitled Quiz';
+    return filename.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+  };
 
-  const handleNext = (e) => {
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleSubmitWithFiles = async (e) => {
     e.preventDefault();
-    setStep(2);
+    if (!file) return alert('Please upload a file first.');
+
+    try {
+      const base64 = await fileToBase64(file);
+      console.log(base64);
+      const response = await fetch('/api/quiz', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          file: base64,
+          filename: file.name,
+          subject,
+          duration,
+          questionCount,
+        }),
+      });
+
+      const data = await response.json();
+      setQuestions(data.questions);
+      setTitle(generateQuizTitle(file.name));
+      setStep(2);
+    } catch (error) {
+      console.error('Error submitting file:', error);
+    }
   };
 
   const handleSubmitQuiz = () => {
-    const quizData = {
-      subject,
-      duration,
-      questionCount,
-      avatar: avatarPaths[avatarIndex],
-      visibility: 'Public', // Hardcoded for now
-    };
-    console.log('Quiz submitted:', quizData);
-    router.push('/lobby/new-quiz-123'); // Replace with dynamic path if needed
+    router.push('/lobby/new-quiz-123');
   };
 
   return (
@@ -89,7 +133,7 @@ export default function CreateQuiz() {
             </button>
           </div>
 
-          <form onSubmit={handleNext} className="p-6">
+          <form onSubmit={handleSubmitWithFiles} className="p-6">
             {activeTab === 'auto' && (
               <div className="mb-6">
                 <label className="block text-gray-700 mb-2 font-medium">Upload PDF Material</label>
@@ -185,7 +229,8 @@ export default function CreateQuiz() {
                   </select>
                 </div>
               </div>
-              <div>
+
+              <div className="mb-6">
                 <label htmlFor="questionCount" className="block text-gray-700 mb-2 font-medium">
                   Number of Questions
                 </label>
@@ -232,7 +277,7 @@ export default function CreateQuiz() {
 
       {step === 2 && (
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-6">Choose an Avatar</h2>
+          <h2 className="text-xl font-semibold mb-4">Choose an Avatar</h2>
 
           <div className="relative flex items-center justify-center mb-6">
             <button
@@ -247,8 +292,8 @@ export default function CreateQuiz() {
             <Image
               src={avatarPaths[avatarIndex]}
               alt={`Avatar ${avatarIndex + 1}`}
-              width={200}
-              height={200}
+              width={300}
+              height={300}
               className="rounded-full border-4 border-indigo-500 transition-transform duration-300"
             />
 
@@ -262,10 +307,14 @@ export default function CreateQuiz() {
             </button>
           </div>
 
+          <div className="text-center text-gray-600 mb-4">
+            Selected: Avatar {avatarIndex + 1}
+          </div>
+
           <div className="flex justify-between">
             <button
               onClick={() => setStep(1)}
-              className="px-4 py-2 text-sm bg-gray-200 rounded-md hover:bg-gray-300"
+              className="px-6 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
             >
               Back
             </button>
@@ -273,7 +322,7 @@ export default function CreateQuiz() {
               onClick={handleSubmitQuiz}
               className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
             >
-              Create Quiz
+              Submit Quiz
             </button>
           </div>
         </div>
