@@ -2,28 +2,28 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileUpIcon, PlusIcon, MinusIcon } from 'lucide-react';
-import avatar1 from '@/public/avatars/avatar1.png';
-import avatar2 from '@/public/avatars/avatar2.png';
-import avatar3 from '@/public/avatars/avatar3.png';
-import avatar4 from '@/public/avatars/avatar4.png';
-import avatar5 from '@/public/avatars/avatar5.png';
-import avatar6 from '@/public/avatars/avatar6.png';
+import Image from 'next/image';
+import { FileUpIcon, PlusIcon, MinusIcon, UsersIcon } from 'lucide-react';
 
+const avatarPaths = [
+  '/avatars/avatar1.jpg',
+  '/avatars/avatar2.jpg',
+  '/avatars/avatar3.jpg',
+  '/avatars/avatar4.jpg',
+  '/avatars/avatar5.jpeg',
+  '/avatars/avatar6.jpeg',
+];
 
 export default function CreateQuiz() {
   const router = useRouter();
   const [subject, setSubject] = useState('');
   const [duration, setDuration] = useState(15);
   const [questionCount, setQuestionCount] = useState(10);
-  const [avatar, setAvatar] = useState('default');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [activeTab, setActiveTab] = useState('auto');
-  const [step, setStep] = useState(1); // step 1 = quiz form, step 2 = avatar selection
-  const avatars = [avatar1, avatar2, avatar3, avatar4, avatar5, avatar6];
-    const [avatarIndex, setAvatarIndex] = useState(0);
-
+  const [step, setStep] = useState(1);
+  const [avatarIndex, setAvatarIndex] = useState(0);
 
   const handleFileUpload = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -43,12 +43,19 @@ export default function CreateQuiz() {
 
   const handleNext = (e) => {
     e.preventDefault();
-    setStep(2); // Move to avatar selection step
+    setStep(2);
   };
 
   const handleSubmitQuiz = () => {
-    // Add avatar logic here if needed
-    router.push('/lobby/new-quiz-123');
+    const quizData = {
+      subject,
+      duration,
+      questionCount,
+      avatar: avatarPaths[avatarIndex],
+      visibility: 'Public', // Hardcoded for now
+    };
+    console.log('Quiz submitted:', quizData);
+    router.push('/lobby/new-quiz-123'); // Replace with dynamic path if needed
   };
 
   return (
@@ -59,6 +66,7 @@ export default function CreateQuiz() {
         <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
           <div className="flex border-b">
             <button
+              type="button"
               className={`flex-1 py-4 font-medium text-center ${
                 activeTab === 'auto'
                   ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-500'
@@ -69,6 +77,7 @@ export default function CreateQuiz() {
               AI-Generated Questions
             </button>
             <button
+              type="button"
               className={`flex-1 py-4 font-medium text-center ${
                 activeTab === 'manual'
                   ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-500'
@@ -165,35 +174,47 @@ export default function CreateQuiz() {
               </div>
             </div>
 
-            <div className="mb-6">
-              <label htmlFor="questionCount" className="block text-gray-700 mb-2 font-medium">
-                Number of Questions
-              </label>
-              <div className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => setQuestionCount(Math.max(5, questionCount - 5))}
-                  className="px-3 py-2 border border-gray-300 rounded-l-md bg-gray-50 text-gray-600 hover:bg-gray-100"
-                >
-                  <MinusIcon className="h-5 w-5" />
-                </button>
-                <input
-                  type="number"
-                  id="questionCount"
-                  value={questionCount}
-                  onChange={(e) => setQuestionCount(parseInt(e.target.value) || 5)}
-                  className="w-full text-center px-3 py-2 border-t border-b border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  min="5"
-                  max="50"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setQuestionCount(Math.min(50, questionCount + 5))}
-                  className="px-3 py-2 border border-gray-300 rounded-r-md bg-gray-50 text-gray-600 hover:bg-gray-100"
-                >
-                  <PlusIcon className="h-5 w-5" />
-                </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                <UsersIcon size={18} className="text-gray-500 mr-2" />
+                <div>
+                  <p className="text-xs text-gray-500">Visibility</p>
+                  <select className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                    <option>Public</option>
+                    <option>Private (Invite only)</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label htmlFor="questionCount" className="block text-gray-700 mb-2 font-medium">
+                  Number of Questions
+                </label>
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => setQuestionCount(Math.max(5, questionCount - 5))}
+                    className="px-3 py-2 border border-gray-300 rounded-l-md bg-gray-50 text-gray-600 hover:bg-gray-100"
+                  >
+                    <MinusIcon className="h-5 w-5" />
+                  </button>
+                  <input
+                    type="number"
+                    id="questionCount"
+                    value={questionCount}
+                    onChange={(e) => setQuestionCount(parseInt(e.target.value) || 5)}
+                    className="w-full text-center px-3 py-2 border-t border-b border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    min="5"
+                    max="50"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setQuestionCount(Math.min(50, questionCount + 5))}
+                    className="px-3 py-2 border border-gray-300 rounded-r-md bg-gray-50 text-gray-600 hover:bg-gray-100"
+                  >
+                    <PlusIcon className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -209,45 +230,54 @@ export default function CreateQuiz() {
         </div>
       )}
 
-        {step === 2 && (
+      {step === 2 && (
         <div className="bg-white rounded-xl shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">Choose an Avatar</h2>
+          <h2 className="text-xl font-semibold mb-6">Choose an Avatar</h2>
 
-            <div className="relative flex items-center justify-center mb-6">
+          <div className="relative flex items-center justify-center mb-6">
             <button
-                onClick={() => setAvatarIndex((prev) => (prev === 0 ? avatars.length - 1 : prev - 1))}
-                className="absolute left-0 p-2 bg-gray-100 rounded-full shadow hover:bg-gray-200"
+              onClick={() =>
+                setAvatarIndex((prev) => (prev === 0 ? avatarPaths.length - 1 : prev - 1))
+              }
+              className="absolute left-0 p-2 bg-gray-100 rounded-full shadow hover:bg-gray-200"
             >
-                &#8592;
+              &#8592;
             </button>
 
-            <img
-                src={avatars[avatarIndex].src}
-                alt={`Avatar ${avatarIndex + 1}`}
-                className="w-32 h-32 rounded-full border-4 border-indigo-500 transition-transform duration-300"
+            <Image
+              src={avatarPaths[avatarIndex]}
+              alt={`Avatar ${avatarIndex + 1}`}
+              width={200}
+              height={200}
+              className="rounded-full border-4 border-indigo-500 transition-transform duration-300"
             />
 
             <button
-                onClick={() => setAvatarIndex((prev) => (prev === avatars.length - 1 ? 0 : prev + 1))}
-                className="absolute right-0 p-2 bg-gray-100 rounded-full shadow hover:bg-gray-200"
+              onClick={() =>
+                setAvatarIndex((prev) => (prev === avatarPaths.length - 1 ? 0 : prev + 1))
+              }
+              className="absolute right-0 p-2 bg-gray-100 rounded-full shadow hover:bg-gray-200"
             >
-                &#8594;
+              &#8594;
             </button>
-            </div>
+          </div>
 
-            <div className="text-center text-gray-600 mb-4">Selected: Avatar {avatarIndex + 1}</div>
-
-            <div className="flex justify-end">
+          <div className="flex justify-between">
             <button
-                onClick={handleSubmitQuiz}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              onClick={() => setStep(1)}
+              className="px-4 py-2 text-sm bg-gray-200 rounded-md hover:bg-gray-300"
             >
-                Create Quiz
+              Back
             </button>
-            </div>
+            <button
+              onClick={handleSubmitQuiz}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            >
+              Create Quiz
+            </button>
+          </div>
         </div>
-        )}
-
+      )}
     </div>
   );
 }
