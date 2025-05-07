@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const upload = require('../middleware/uploadMiddleware');
 const quizController = require('../controllers/quizController');
 
-router.post('/upload', upload.single('pdf'), quizController.uploadAndGenerateQuestions);
-router.get('/:id', quizController.getQuizById);
+// POST /api/quiz/upload - Upload PDF and generate quiz
+router.post('/upload', quizController.uploadQuiz);
 
 module.exports = router;

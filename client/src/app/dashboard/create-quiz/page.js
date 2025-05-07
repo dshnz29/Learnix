@@ -27,21 +27,28 @@ export default function CreateQuiz() {
   const [questions, setQuestions] = useState([]);
   const [title, setTitle] = useState('');
   const [file, setFile] = useState(null);
+  const [error, setError] = useState(null);
 
   const handleFileUpload = async (e) => {
+    setError(null);
     if (e.target.files && e.target.files[0]) {
-      setIsUploading(true);
-      setFile(e.target.files[0]);
-  
-      // Convert to base64 and log it
-      try {
-        const base64 = await fileToBase64(e.target.files[0]);
-        console.log('Converted base64:', base64); // This will log the base64 string
-      } catch (error) {
-        console.error('Error converting file:', error);
+      const selectedFile = e.target.files[0];
+      
+      // Validate file type and size
+      if (!selectedFile.type.includes('pdf')) {
+        setError('Please upload a PDF file');
+        return;
       }
-  
-      // Simulate upload progress (keep your existing progress logic)
+      
+      if (selectedFile.size > 10 * 1024 * 1024) { // 10MB limit
+        setError('File size exceeds 10MB limit');
+        return;
+      }
+
+      setIsUploading(true);
+      setFile(selectedFile);
+
+      // Simulate upload progress
       let progress = 0;
       const interval = setInterval(() => {
         progress += 10;
@@ -54,6 +61,7 @@ export default function CreateQuiz() {
       }, 300);
     }
   };
+
   const generateQuizTitle = (filename) => {
     if (!filename) return 'Untitled Quiz';
     return filename.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
@@ -70,12 +78,18 @@ export default function CreateQuiz() {
 
   const handleSubmitWithFiles = async (e) => {
     e.preventDefault();
-    if (!file) return alert('Please upload a file first.');
-
+    setError(null);
+    
+    if (!file) {
+      setError('Please upload a file first');
+      return;
+    }
+  
     try {
+      setIsUploading(true);
       const base64 = await fileToBase64(file);
-      console.log(base64);
-      const response = await fetch('/api/quiz', {
+      
+      const response = await fetch('http://localhost:5000/api/quiz/upload', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,23 +102,47 @@ export default function CreateQuiz() {
           questionCount,
         }),
       });
-
-      const data = await response.json();
+  
+      // First check if response is HTML
+      const text = await response.text();
+      if (text.startsWith('<!DOCTYPE')) {
+        throw new Error('Server returned an HTML error page. Check if backend is running properly.');
+      }
+  
+      // Then try to parse as JSON
+      const data = JSON.parse(text);
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to process file');
+      }
+  
       setQuestions(data.questions);
       setTitle(generateQuizTitle(file.name));
       setStep(2);
     } catch (error) {
       console.error('Error submitting file:', error);
+      setError(error.message.includes('<!DOCTYPE') 
+        ? 'Backend server error. Please try again later.'
+        : error.message || 'Failed to upload file');
+    } finally {
+      setIsUploading(false);
     }
   };
-
   const handleSubmitQuiz = () => {
-    router.push('/lobby/new-quiz-123');
+    // Here you would typically send the quiz data to your database
+    // For now, we'll just navigate to the lobby with a mock ID
+    router.push(`/lobby/${Date.now()}`);
   };
 
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-8 text-gray-800">Create a New Quiz</h1>
+
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
 
       {step === 1 && (
         <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
@@ -146,7 +184,7 @@ export default function CreateQuiz() {
                           style={{ width: `${uploadProgress}%` }}
                         ></div>
                       </div>
-                      <p className="text-gray-600">Uploading... {uploadProgress}%</p>
+                      <p className="text-gray-600">Processing... {uploadProgress}%</p>
                     </div>
                   ) : (
                     <>
@@ -164,6 +202,11 @@ export default function CreateQuiz() {
                         </label>
                       </p>
                       <p className="mt-1 text-xs text-gray-500">PDF files up to 10MB</p>
+                      {file && (
+                        <p className="mt-2 text-sm text-indigo-600">
+                          Selected: {file.name}
+                        </p>
+                      )}
                     </>
                   )}
                 </div>
@@ -266,9 +309,12 @@ export default function CreateQuiz() {
             <div className="flex justify-end">
               <button
                 type="submit"
-                className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                disabled={isUploading}
+                className={`px-6 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                  isUploading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'
+                }`}
               >
-                Next
+                {isUploading ? 'Processing...' : 'Next'}
               </button>
             </div>
           </form>
@@ -277,8 +323,17 @@ export default function CreateQuiz() {
 
       {step === 2 && (
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Choose an Avatar</h2>
+          <h2 className="text-xl font-semibold mb-4">Review Your Quiz</h2>
+          
+          <div className="mb-6">
+            <h3 className="text-lg font-medium mb-2">Quiz Details:</h3>
+            <p><strong>Title:</strong> {title}</p>
+            <p><strong>Subject:</strong> {subject}</p>
+            <p><strong>Duration:</strong> {duration} minutes</p>
+            <p><strong>Questions:</strong> {questions.length}</p>
+          </div>
 
+          <h2 className="text-xl font-semibold mb-4">Choose an Avatar</h2>
           <div className="relative flex items-center justify-center mb-6">
             <button
               onClick={() =>
@@ -322,7 +377,7 @@ export default function CreateQuiz() {
               onClick={handleSubmitQuiz}
               className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
             >
-              Submit Quiz
+              Create Quiz
             </button>
           </div>
         </div>
