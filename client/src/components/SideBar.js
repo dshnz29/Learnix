@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   HomeIcon,
   PlusCircleIcon,
@@ -11,41 +12,94 @@ import {
   BookOpenIcon,
   HistoryIcon,
   TrophyIcon,
-  MicIcon
-} from 'lucide-react';
+  MicIcon,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
-const Sidebar = () => {
-  return (
-    <div className="w-64 bg-white shadow-lg min-h-screen p-4">
-      <div className="flex items-center justify-center mb-8 mt-4">
-        <h1 className="text-2xl font-bold text-indigo-600">QuizMaster</h1>
-      </div>
-      <nav className="space-y-2">
-        <NavItem href="/dashboard" icon={<LayoutDashboardIcon size={18} />} label="Dashboard" />
-        <NavItem href="/dashboard/create-quiz" icon={<PlusCircleIcon size={18} />} label="Create Quiz" />
-        <NavItem href="/dashboard/join-quiz" icon={<LogInIcon size={18} />} label="Join Quiz" />
-        <NavItem href="/dashboard/explore" icon={<BookOpenIcon size={18} />} label="Explore" />
-        <NavItem href="/dashboard/history" icon={<HistoryIcon size={18} />} label="History" />
-        <NavItem href="/dashboard/leaderboard" icon={<TrophyIcon size={18} />} label="Leaderboard" />
-        <NavItem href="/dashboard/voice-learning" icon={<MicIcon size={18} />} label="Voice Learning" />
-        <NavItem href="/" icon={<HomeIcon size={18} />} label="Home" />
-      </nav>
-    </div>
-  );
-};
+const navLinks = [
+  { href: "/dashboard", icon: LayoutDashboardIcon, label: "Dashboard" },
+  {
+    href: "/dashboard/create-quiz",
+    icon: PlusCircleIcon,
+    label: "Create Quiz",
+  },
+  { href: "/dashboard/join-quiz", icon: LogInIcon, label: "Join Quiz" },
+  { href: "/dashboard/explore", icon: BookOpenIcon, label: "Explore" },
+  { href: "/dashboard/history", icon: HistoryIcon, label: "History" },
+  { href: "/dashboard/leaderboard", icon: TrophyIcon, label: "Leaderboard" },
+  { href: "/dashboard/voice-agent", icon: MicIcon, label: "Voice Learning" },
+  { href: "/", icon: HomeIcon, label: "Home" },
+];
 
-const NavItem = ({ href, icon, label }) => {
+const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   const pathname = usePathname();
-  const isActive = pathname === href;
 
   return (
-    <Link
-      href={href}
-      className={`flex items-center space-x-2 px-4 py-3 rounded-lg transition-colors ${isActive ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
+    <motion.aside
+      initial={false}
+      animate={{ width: isCollapsed ? 80 : 260 }}
+      transition={{ duration: 0.5, ease: "easeInOut" }}
+      className="p-4 flex flex-col gap-4 rounded-r-3xl shadow-xl border-r min-h-screen fixed z-50 overflow-hidden"
+      style={{
+        backgroundColor: "rgba(255, 255, 255, 0.06)",
+        backdropFilter: "blur(16px)",
+        borderColor: "rgba(255, 255, 255, 0.2)",
+      }}
     >
-      {icon}
-      <span>{label}</span>
-    </Link>
+      {/* Title & Toggle Button */}
+      <div
+        className="relative mb-8 flex justify-center items-center mt-5"
+        style={{ height: 40 }}
+      >
+        {!isCollapsed ? (
+          <h1 className="text-3xl font-extrabold text-white text-center">
+            LearniX.
+          </h1>
+        ) : (
+          <div style={{ height: "1rem" }} />
+        )}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="absolute -right-5 top-1/2 transform -translate-y-1/2 bg-white/20 text-white rounded-full p-1 hover:bg-white/30 backdrop-blur shadow-lg z-10"
+          aria-label="Toggle Sidebar"
+        >
+          {isCollapsed ? <ChevronRight size={25} /> : <ChevronLeft size={25} />}
+        </button>
+      </div>
+
+      {/* Navigation */}
+      <nav className="space-y-1">
+        {navLinks.map(({ href, icon: Icon, label }) => {
+          const isActive = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex items-center ${
+                isCollapsed ? "justify-center" : "gap-4"
+              } px-4 py-3 rounded-lg transition-colors cursor-pointer group text-[16px] ${
+                isActive
+                  ? "bg-teal-400 text-gray-900 font-semibold"
+                  : "hover:bg-white/10 text-white/80"
+              }`}
+            >
+              <Icon size={22} />
+              {!isCollapsed && (
+                <motion.span
+                  initial={false}
+                  animate={{ opacity: 1, width: "auto" }}
+                  transition={{ duration: 0.4 }}
+                  className="overflow-hidden whitespace-nowrap"
+                >
+                  {label}
+                </motion.span>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+    </motion.aside>
   );
 };
 

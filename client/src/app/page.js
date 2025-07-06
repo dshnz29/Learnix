@@ -1,187 +1,117 @@
 'use client';
 
-import Image from 'next/image';
-import Link from 'next/link';
+import { motion } from "framer-motion";
+import {
+  FaMicrophone,
+  FaCrown,
+  FaHistory,
+  FaRocket,
+  FaPlus,
+  FaHome,
+  FaUsers
+} from "react-icons/fa";
 
-const FeatureCard = ({ icon, title, description }) => {
+export default function Dashboard() {
   return (
-    <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition">
-      <div className="mb-4">
-        {icon || <div className="w-10 h-10 bg-indigo-200 rounded-full" />}
-      </div>
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">{title}</h3>
-      <p className="text-gray-600">{description}</p>
+    <div className="min-h-screen flex bg-gradient-to-br from-[#1a4c56] via-[#124077] to-[#2b2477] bg-[url('/bg.png')] bg-cover text-white font-sans">
+      
+      {/* Sidebar (optional) */}
+      
+      {/* Main Content */}
+      <main className="flex-1 p-8 space-y-6">
+        <motion.h2
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="text-2xl font-semibold text-white"
+        >
+          Dashboard
+        </motion.h2>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <SummaryCard
+            title="Total Quizzes"
+            value="24"
+            subtitle="Quizzes taken"
+            color="bg-white/10 backdrop-blur-lg border border-white/20"
+          />
+          <SummaryCard
+            title="Average Score"
+            value="76%"
+            subtitle="Across all quizzes"
+            color="bg-white/10 backdrop-blur-lg border border-white/20"
+          />
+          <SummaryCard
+            title="Knowledge Areas"
+            value="8"
+            subtitle="Topics Expired"
+            color="bg-white/10 backdrop-blur-lg border border-white/20"
+          />
+        </div>
+
+        {/* Quiz Activity and Suggestions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white/10 backdrop-blur-lg p-6 rounded-xl shadow-md border border-white/20"
+          >
+            <h3 className="text-lg font-semibold mb-4">Recent Quiz Activity</h3>
+            {[1, 2, 3].map((_, i) => (
+              <div
+                key={i}
+                className="flex justify-between items-center border-b border-white/20 py-2"
+              >
+                <span>Science Trivia</span>
+                <div className="text-sm text-teal-200">8/10</div>
+                <div className="text-sm text-green-300 cursor-pointer hover:underline">View Details</div>
+              </div>
+            ))}
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="bg-white/10 backdrop-blur-lg p-6 rounded-xl shadow-md border border-white/20"
+          >
+            <h3 className="text-lg font-semibold mb-4">Learning Suggestions</h3>
+            <p className="text-sm text-gray-300">No suggestions available at the moment.</p>
+          </motion.div>
+        </div>
+      </main>
     </div>
   );
-};
+}
 
-export default function Home() {
+// Sidebar Item
+function SidebarItem({ icon, label, active }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-indigo-600">QuizMaster</h1>
-          <div className="flex space-x-4">
-            <Link href="/login" className="px-4 py-2 text-indigo-600 font-medium hover:text-indigo-800">
-              Login
-            </Link>
-            <Link href="/register" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition">
-              Register
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero & Features */}
-      <main>
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">
-              Learn Together, Grow Together
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Create and join real-time multiplayer quizzes, track your
-              progress, and improve your knowledge with personalized learning
-              suggestions.
-            </p>
-            <div className="mt-8">
-              <Link href="/register" className="inline-block px-8 py-4 bg-indigo-600 text-white rounded-md text-lg font-medium hover:bg-indigo-700 transition shadow-md">
-                Get Started
-              </Link>
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mt-16">
-            <FeatureCard
-              title="Learn Interactively"
-              description="Engage with content through interactive quizzes designed to enhance retention and understanding."
-            />
-            <FeatureCard
-              title="Multiplayer Experience"
-              description="Compete with friends or join public quizzes to make learning a social and fun experience."
-            />
-            <FeatureCard
-              title="Personalized Learning"
-              description="Receive tailored feedback and suggestions based on your quiz performance."
-            />
-            <FeatureCard
-              title="Track Progress"
-              description="Monitor your improvement over time with detailed statistics and leaderboards."
-            />
-          </div>
-        </section>
-
-        {/* How it Works Section */}
-        <section className="bg-white py-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-12">
-              How It Works
-            </h2>
-            <div className="grid md:grid-cols-3 gap-8">
-              <FeatureCard
-                title="Step 1: Register"
-                description="Create an account to get started. It’s quick and easy!"
-              />
-              <FeatureCard
-                title="Step 2: Create or Join Quizzes"
-                description="Build your own quizzes or participate in others’ quizzes in real-time."
-              />
-              <FeatureCard
-                title="Step 3: Analyze & Learn"
-                description="Get instant feedback and personalized suggestions for improvement."
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Testimonials Section */}
-        <section className="bg-gray-100 py-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-12">
-              What Our Users Say
-            </h2>
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="bg-white p-6 rounded-xl shadow hover:shadow-md transition">
-                <p className="text-gray-700 mb-4">
-                  “QuizMaster has completely changed how I study! The multiplayer mode keeps me engaged and motivated.”
-                </p>
-                <div className="flex items-center justify-center space-x-4">
-                  <div className="w-12 h-12 rounded-full bg-indigo-200 flex items-center justify-center font-bold text-indigo-700">A</div>
-                  <div className="text-left">
-                    <p className="font-semibold text-gray-900">Anjali Perera</p>
-                    <p className="text-gray-500 text-sm">University Student</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white p-6 rounded-xl shadow hover:shadow-md transition">
-                <p className="text-gray-700 mb-4">
-                  “I love the personalized learning suggestions. It helps me focus exactly where I need improvement.”
-                </p>
-                <div className="flex items-center justify-center space-x-4">
-                  <div className="w-12 h-12 rounded-full bg-indigo-200 flex items-center justify-center font-bold text-indigo-700">R</div>
-                  <div className="text-left">
-                    <p className="font-semibold text-gray-900">Ruwan Silva</p>
-                    <p className="text-gray-500 text-sm">High School Teacher</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white p-6 rounded-xl shadow hover:shadow-md transition">
-                <p className="text-gray-700 mb-4">
-                  “The quiz creation from PDFs is amazing. I created a full practice set for my class in minutes!”
-                </p>
-                <div className="flex items-center justify-center space-x-4">
-                  <div className="w-12 h-12 rounded-full bg-indigo-200 flex items-center justify-center font-bold text-indigo-700">D</div>
-                  <div className="text-left">
-                    <p className="font-semibold text-gray-900">Dilani Fernando</p>
-                    <p className="text-gray-500 text-sm">Private Tutor</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* FAQ Section */}
-        <section className="bg-white py-20">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 text-center mb-12">
-              Frequently Asked Questions
-            </h2>
-            <div className="space-y-8">
-              <div>
-                <h3 className="text-xl font-semibold text-indigo-700">Is QuizMaster free to use?</h3>
-                <p className="text-gray-600 mt-2">
-                  Yes! You can sign up and use all basic features for free. Premium features will be introduced soon.
-                </p>
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-indigo-700">Can I create quizzes from PDFs or notes?</h3>
-                <p className="text-gray-600 mt-2">
-                  Absolutely! You can upload your documents and QuizMaster will generate quizzes for you.
-                </p>
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-indigo-700">Is it suitable for schools or tutoring centers?</h3>
-                <p className="text-gray-600 mt-2">
-                  Definitely! Teachers and tutors can manage students, create quizzes, and track performance over time.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-white border-t">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <p className="text-center text-gray-500">
-            © 2025 QuizMaster. All rights reserved.
-          </p>
-        </div>
-      </footer>
+    <div
+      className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors cursor-pointer ${
+        active ? "bg-green-400 text-gray-900" : "hover:bg-teal-600"
+      }`}
+    >
+      <div className="text-xl">{icon}</div>
+      <span className="text-md font-medium">{label}</span>
     </div>
+  );
+}
+
+// Summary Card
+function SummaryCard({ title, value, subtitle, color }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: 0.3 }}
+      className={`rounded-xl p-6 shadow-md text-white ${color}`}
+    >
+      <h4 className="text-md font-medium mb-1">{title}</h4>
+      <p className="text-3xl font-bold mb-1">{value}</p>
+      <span className="text-sm text-white/80">{subtitle}</span>
+    </motion.div>
   );
 }
