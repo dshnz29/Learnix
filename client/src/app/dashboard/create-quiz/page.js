@@ -13,6 +13,7 @@ import {
 import { FileUpIcon, ArrowLeft, ArrowRight } from 'lucide-react';
 import Image from "next/image";
 import { useState } from "react";
+import { v4 as uuidv4 } from 'uuid'; // ✅ UUID import
 
 export default function Dashboard() {
   const [step, setStep] = useState(1);
@@ -209,8 +210,8 @@ export default function Dashboard() {
               <div className="flex justify-center mt-6">
                 <button
                   onClick={() => {
-                    const quizId = crypto.randomUUID(); // Use UUID for uniqueness
-                    window.open(`/dashboard/quiz/${quizId}`, '_blank'); // Opens in new tab
+                    const quizId = uuidv4(); // ✅ Safe unique ID
+                    window.open(`/dashboard/quiz/${quizId}`, '_blank');
                   }}
                   className="px-10 py-2 bg-emerald-400 text-black font-semibold rounded-full hover:bg-emerald-300 transition"
                 >
@@ -221,19 +222,6 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
       </main>
-    </div>
-  );
-}
-
-function SidebarItem({ icon, label, active }) {
-  return (
-    <div
-      className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors cursor-pointer ${
-        active ? "bg-green-400 text-gray-900" : "hover:bg-teal-600"
-      }`}
-    >
-      <div className="text-xl">{icon}</div>
-      <span className="text-md font-medium">{label}</span>
     </div>
   );
 }
