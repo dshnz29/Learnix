@@ -354,7 +354,7 @@ const LiveQuizPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white">
+      <div className="min-h-screen flex items-center justify-center text-white">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -370,7 +370,7 @@ const LiveQuizPage = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white">
+      <div className="min-h-screen flex items-center justify-center  text-white">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -402,7 +402,7 @@ const LiveQuizPage = () => {
 
   if (!quiz || !currentQuestion) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white">
+      <div className="min-h-screen flex items-center justify-center text-white">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -425,7 +425,7 @@ const LiveQuizPage = () => {
     const grade = percentage >= 90 ? 'A' : percentage >= 80 ? 'B' : percentage >= 70 ? 'C' : percentage >= 60 ? 'D' : 'F';
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white font-sans p-6">
+      <div className="min-h-screen  text-white font-sans p-6">
         <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -506,7 +506,7 @@ const LiveQuizPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white font-sans p-6">
+    <div className="min-h-screen  text-white font-sans p-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}

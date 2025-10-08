@@ -10,7 +10,9 @@ import {
   FaHome,
   FaUsers,
   FaSpinner,
-  FaCopy
+  FaCopy,
+  FaUser,
+  FaPlay
 } from "react-icons/fa";
 import { FileUpIcon, ArrowLeft, ArrowRight, Eye, FileText, Copy, CheckCircle } from 'lucide-react';
 import Image from "next/image";
@@ -18,8 +20,11 @@ import { useState, useRef, useEffect } from "react";
 import { v4 as uuidv4 } from 'uuid';
 import { useRouter } from 'next/navigation';
 import QuizService from '../../../services/quizService';
+import singlePlayerService from '../../../services/singlePlayerService';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export default function Dashboard() {
+  const { user } = useAuth(); // Add this
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [file, setFile] = useState(null);
@@ -27,6 +32,7 @@ export default function Dashboard() {
   const [visibility, setVisibility] = useState("Public");
   const [duration, setDuration] = useState(15);
   const [questionCount, setQuestionCount] = useState(10);
+  const [gameMode, setGameMode] = useState("multiplayer"); // New game mode state
   const [error, setError] = useState(null);
   const [selectedAvatar, setSelectedAvatar] = useState(1);
   const [name, setName] = useState("");
@@ -55,21 +61,23 @@ export default function Dashboard() {
     { src: "/avatars/avatar3.png", id: 2 }
   ];
 
-  // Generate quiz ID and shareable link when quiz is created
+  // Generate quiz ID and shareable link when quiz is created - UPDATE THIS
   useEffect(() => {
     if (generatedQuiz && generatedQuiz.length > 0 && !quizId) {
       const newQuizId = uuidv4();
       setQuizId(newQuizId);
       
-      // Generate shareable lobby link
-      const baseUrl = window.location.origin;
-      const lobbyLink = `${baseUrl}/dashboard/lobby/${newQuizId}`;
-      setShareableLink(lobbyLink);
-      
-      console.log("🆔 Generated Quiz ID:", newQuizId);
-      console.log("🔗 Shareable lobby link:", lobbyLink);
+      // Only generate shareable link for multiplayer mode
+      if (gameMode === "multiplayer") {
+        const baseUrl = window.location.origin;
+        const lobbyJoinLink = `${baseUrl}/dashboard/lobby/${newQuizId}/join`;
+        setShareableLink(lobbyJoinLink);
+        
+        console.log("🆔 Generated Quiz ID:", newQuizId);
+        console.log("🔗 Shareable join link:", lobbyJoinLink);
+      }
     }
-  }, [generatedQuiz, quizId]);
+  }, [generatedQuiz, quizId, gameMode]);
 
   // Copy link to clipboard
   const copyLink = async () => {
@@ -119,9 +127,11 @@ export default function Dashboard() {
       formData.append("questionCount", questionCount.toString());
       formData.append("subject", subject);
       formData.append("difficulty", "medium");
+      formData.append("gameMode", gameMode); // Add game mode to form data
 
       try {
         console.log("📤 Uploading file:", selectedFile.name);
+        console.log("🎮 Game mode:", gameMode);
         
         const res = await fetch("http://localhost:5000/api/upload", {
           method: "POST",
@@ -142,7 +152,12 @@ export default function Dashboard() {
           
           // Auto-advance to next step after success
           setTimeout(() => {
-            setStep(2);
+            // For single player mode, skip avatar selection and go directly to step 3
+            if (gameMode === "singleplayer") {
+              setStep(3);
+            } else {
+              setStep(2);
+            }
           }, 3000);
         } else {
           setError(data.error || "Upload failed");
@@ -183,15 +198,21 @@ export default function Dashboard() {
     }
   };
 
-  // Enhanced createCompleteQuiz with proper data structure
+  // Enhanced createCompleteQuiz with single player service integration
   const createCompleteQuiz = async () => {
     if (!generatedQuiz || generatedQuiz.length === 0) {
       setError("No quiz questions available");
       return null;
     }
 
+    if (!user?.uid) {
+      setError("User not authenticated");
+      return null;
+    }
+
     try {
-      console.log("🔥 Creating complete quiz in Firebase...");
+      console.log("🔥 Creating complete quiz...");
+      console.log("🎮 Game mode:", gameMode);
       
       const quizData = {
         id: quizId,
@@ -200,12 +221,15 @@ export default function Dashboard() {
         difficulty: "medium",
         visibility: visibility || "Public",
         duration: duration || 15,
-        hostName: host || name || "Anonymous",
-        hostAvatar: selectedAvatar || 1,
+        gameMode: gameMode,
+        
+        // User and player data
+        userId: user.uid,
+        playerName: name || user.displayName || user.email?.split('@')[0] || "Anonymous",
+        playerAvatar: selectedAvatar || user.avatar || 1,
         
         questions: generatedQuiz,
         
-        // Properly structure extractedData with fallback values
         extractedData: extractedDataId ? {
           id: extractedDataId,
           filename: file?.name || 'unknown.pdf',
@@ -220,13 +244,22 @@ export default function Dashboard() {
 
       console.log("📊 Quiz data to save:", quizData);
 
-      // Store quiz data in localStorage for lobby page access
+      // Store quiz data in localStorage for access
       localStorage.setItem(`quiz_${quizId}`, JSON.stringify(quizData));
 
       try {
-        const createdQuiz = await QuizService.createQuiz(quizData);
-        console.log("✅ Complete quiz created in Firebase:", createdQuiz.id);
-        return createdQuiz;
+        let createdQuiz;
+        if (gameMode === "singleplayer") {
+          // Use the new single player service
+          createdQuiz = await singlePlayerService.createSinglePlayerQuiz(quizData);
+          console.log("✅ Single player quiz created:", createdQuiz.quizId);
+          return { ...quizData, isLocal: false, backendId: createdQuiz.quizId };
+        } else {
+          // Use existing multiplayer service
+          createdQuiz = await QuizService.createQuiz(quizData);
+          console.log("✅ Multiplayer quiz created:", createdQuiz.id);
+          return createdQuiz;
+        }
       } catch (error) {
         if (error.message.includes("Firebase not initialized")) {
           setFirebaseEnabled(false);
@@ -243,7 +276,32 @@ export default function Dashboard() {
     }
   };
 
-  // Go to lobby function
+  // Start single player quiz function
+  const startSinglePlayerQuiz = async () => {
+    if (!quizId) {
+      setError("Quiz ID not available");
+      return;
+    }
+
+    try {
+      // Create complete quiz first
+      await createCompleteQuiz();
+      
+      // Clean up PDF URL before navigation
+      cleanupPdfUrl();
+      
+      console.log("🎮 Starting single player quiz:", quizId);
+      
+      // Navigate directly to quiz page for single player
+      router.push(`/dashboard/quiz/${quizId}`);
+      
+    } catch (error) {
+      console.error("❌ Error starting single player quiz:", error);
+      setError("Failed to start quiz: " + error.message);
+    }
+  };
+
+  // Go to lobby function (for multiplayer)
   const goToLobby = async () => {
     if (!quizId) {
       setError("Quiz ID not available");
@@ -312,7 +370,6 @@ export default function Dashboard() {
               transition={{ delay: 0.4 }}
               className="max-w-5xl mx-auto bg-white/10 backdrop-blur-md rounded-2xl p-6 shadow-xl"
             >
-              <h1 className="text-2xl font-bold mb-6">Create New Quiz</h1>
               
               {!firebaseEnabled && (
                 <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 mb-4">
@@ -324,6 +381,56 @@ export default function Dashboard() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
+                  {/* Game Mode Selection */}
+                  <div className="mb-6">
+                    <label className="block text-sm mb-3">Game Mode</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <label
+                        className={`cursor-pointer p-4 rounded-lg border transition-all ${
+                          gameMode === "singleplayer"
+                            ? 'border-[#18DEA3]/50 bg-[#18DEA3]/10'
+                            : 'border-white/20 bg-white/5 hover:border-white/30'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="gameMode"
+                          value="singleplayer"
+                          checked={gameMode === "singleplayer"}
+                          onChange={(e) => setGameMode(e.target.value)}
+                          className="sr-only"
+                        />
+                        <div className="text-center">
+                          <FaUser className="text-2xl mx-auto mb-2 text-[#18DEA3]" />
+                          <span className="block text-white font-medium">Single Player</span>
+                          <span className="text-xs text-white/60">Play alone, practice mode</span>
+                        </div>
+                      </label>
+
+                      <label
+                        className={`cursor-pointer p-4 rounded-lg border transition-all ${
+                          gameMode === "multiplayer"
+                            ? 'border-[#18DEA3]/50 bg-[#18DEA3]/10'
+                            : 'border-white/20 bg-white/5 hover:border-white/30'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="gameMode"
+                          value="multiplayer"
+                          checked={gameMode === "multiplayer"}
+                          onChange={(e) => setGameMode(e.target.value)}
+                          className="sr-only"
+                        />
+                        <div className="text-center">
+                          <FaUsers className="text-2xl mx-auto mb-2 text-[#18DEA3]" />
+                          <span className="block text-white font-medium">Multiplayer</span>
+                          <span className="text-xs text-white/60">Host a game for others</span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
                   <label className="block text-sm mb-2">Upload PDF Material</label>
                   <div 
                     className="border border-dashed border-white/30 rounded-xl p-6 text-center bg-white/5"
@@ -334,13 +441,18 @@ export default function Dashboard() {
                       <div className="flex flex-col items-center">
                         <FaSpinner className="mx-auto mb-2 w-10 h-10 text-lime-300 animate-spin" />
                         <p className="text-sm text-lime-300">Processing PDF...</p>
-                        <p className="text-xs text-white/40 mt-1">Generating questions from your PDF</p>
+                        <p className="text-xs text-white/40 mt-1">
+                          Generating questions for {gameMode} mode
+                        </p>
                       </div>
                     ) : uploadSuccess ? (
                       <div className="flex flex-col items-center">
                         <div className="mx-auto mb-2 w-10 h-10 text-green-400 flex items-center justify-center">✅</div>
                         <p className="text-sm text-green-400">Quiz generated successfully!</p>
                         <p className="text-xs text-white/40 mt-1">{generatedQuiz?.length || 0} questions created</p>
+                        <p className="text-xs text-blue-300 mt-1">
+                          🎮 Mode: {gameMode === "singleplayer" ? "Single Player" : "Multiplayer"}
+                        </p>
                         {file && (
                           <p className="text-xs text-blue-300 mt-1">📄 {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</p>
                         )}
@@ -392,18 +504,21 @@ export default function Dashboard() {
                     />
                   </div>
 
-                  <div className="mt-4">
-                    <label className="block mb-1 text-sm">Visibility</label>
-                    <select 
-                      value={visibility} 
-                      onChange={(e) => setVisibility(e.target.value)} 
-                      className="w-full p-2 rounded-md bg-white/10 border border-white/20 text-white"
-                      disabled={isUploading}
-                    >
-                      <option value="Public">Public</option>
-                      <option value="Private">Private</option>
-                    </select>
-                  </div>
+                  {/* Show visibility only for multiplayer */}
+                  {gameMode === "multiplayer" && (
+                    <div className="mt-4">
+                      <label className="block mb-1 text-sm">Visibility</label>
+                      <select 
+                        value={visibility} 
+                        onChange={(e) => setVisibility(e.target.value)} 
+                        className="w-full p-2 rounded-md bg-white/10 border border-white/20 text-white"
+                        disabled={isUploading}
+                      >
+                        <option value="Public">Public</option>
+                        <option value="Private">Private</option>
+                      </select>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-4 mt-4">
                     <div>
@@ -451,7 +566,13 @@ export default function Dashboard() {
               
               <div className="flex justify-end mt-6">
                 <button 
-                  onClick={() => setStep(2)} 
+                  onClick={() => {
+                    if (gameMode === "singleplayer") {
+                      setStep(3); // Skip avatar selection for single player
+                    } else {
+                      setStep(2); // Go to avatar selection for multiplayer
+                    }
+                  }}
                   className="bg-white/20 px-6 py-2 rounded-lg hover:bg-white/30 text-white font-semibold transition-opacity duration-300 disabled:opacity-50"
                   disabled={!uploadSuccess || isUploading}
                 >
@@ -459,7 +580,7 @@ export default function Dashboard() {
                 </button>
               </div>
             </motion.div>
-          ) : step === 2 ? (
+          ) : step === 2 && gameMode === "multiplayer" ? (
             <motion.div
               key="step2"
               initial={{ opacity: 0 }}
@@ -517,7 +638,9 @@ export default function Dashboard() {
               transition={{ duration: 0.1 }}
               className="max-w-5xl mx-auto bg-white/10 backdrop-blur-md rounded-2xl p-6 shadow-xl"
             >
-              <h2 className="text-2xl font-semibold text-white mb-6">Quiz Setup Complete</h2>
+              <h2 className="text-2xl font-semibold text-white mb-6">
+                {gameMode === "singleplayer" ? "Single Player Quiz Ready" : "Quiz Setup Complete"}
+              </h2>
               
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Quiz Details */}
@@ -528,6 +651,12 @@ export default function Dashboard() {
                   </h3>
                   {generatedQuiz && (
                     <div className="text-white/70 space-y-3">
+                      <div className="flex justify-between">
+                        <span>🎮 Mode:</span>
+                        <span className="text-white font-medium capitalize">
+                          {gameMode === "singleplayer" ? "Single Player" : "Multiplayer"}
+                        </span>
+                      </div>
                       <div className="flex justify-between">
                         <span>📝 Questions:</span>
                         <span className="text-white font-medium">{generatedQuiz.length}</span>
@@ -554,7 +683,7 @@ export default function Dashboard() {
                   )}
                 </div>
                 
-                {/* Host Settings & Share Link */}
+                {/* Settings & Actions */}
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm text-white mb-1">Quiz Title</label>
@@ -567,57 +696,74 @@ export default function Dashboard() {
                     />
                   </div>
                   
-                  <div>
-                    <label className="block text-sm text-white mb-1">Host Name</label>
-                    <input
-                      type="text"
-                      value={host}
-                      onChange={(e) => setHost(e.target.value)}
-                      className="w-full p-3 rounded-md bg-white/10 border border-white/20 text-white placeholder:text-white/70"
-                      placeholder={name || "Your Name"}
-                    />
-                  </div>
-                  
-                  {/* Share Link Section */}
-                  <div className="bg-white/10 border border-white/20 rounded-lg p-4">
-                    <h4 className="text-white font-medium mb-3 flex items-center">
-                      <Copy className="w-4 h-4 mr-2" />
-                      Share Quiz Link
-                    </h4>
-                    <div className="flex items-center gap-2 mb-2">
+                  {gameMode === "singleplayer" && (
+                    <div>
+                      <label className="block text-sm text-white mb-1">Player Name</label>
                       <input
                         type="text"
-                        value={shareableLink || "Generating link..."}
-                        readOnly
-                        className="flex-1 p-2 text-xs bg-white/10 border border-white/20 rounded text-white/80 font-mono"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full p-3 rounded-md bg-white/10 border border-white/20 text-white placeholder:text-white/70"
+                        placeholder="Your Name"
                       />
-                      <button
-                        onClick={copyLink}
-                        disabled={!shareableLink}
-                        className="px-3 py-2 bg-blue-500 hover:bg-blue-600 rounded transition flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {linkCopied ? (
-                          <>
-                            <CheckCircle className="w-4 h-4" />
-                            <span className="text-xs">Copied!</span>
-                          </>
-                        ) : (
-                          <>
-                            <FaCopy className="w-3 h-3" />
-                            <span className="text-xs">Copy</span>
-                          </>
-                        )}
-                      </button>
                     </div>
-                    <p className="text-xs text-white/60">
-                      Share this link with players to let them join your quiz lobby
-                    </p>
-                    {shareableLink && (
-                      <div className="mt-3 p-2 bg-green-500/20 border border-green-500/50 rounded text-xs text-green-300">
-                        ✅ Lobby link ready! Share with your players.
+                  )}
+                  
+                  {gameMode === "multiplayer" && (
+                    <>
+                      <div>
+                        <label className="block text-sm text-white mb-1">Host Name</label>
+                        <input
+                          type="text"
+                          value={host}
+                          onChange={(e) => setHost(e.target.value)}
+                          className="w-full p-3 rounded-md bg-white/10 border border-white/20 text-white placeholder:text-white/70"
+                          placeholder={name || "Your Name"}
+                        />
                       </div>
-                    )}
-                  </div>
+                      
+                      {/* Share Link Section - Only for multiplayer */}
+                      <div className="bg-white/10 border border-white/20 rounded-lg p-4">
+                        <h4 className="text-white font-medium mb-3 flex items-center">
+                          <Copy className="w-4 h-4 mr-2" />
+                          Share Quiz Link
+                        </h4>
+                        <div className="flex items-center gap-2 mb-2">
+                          <input
+                            type="text"
+                            value={shareableLink || "Generating link..."}
+                            readOnly
+                            className="flex-1 p-2 text-xs bg-white/10 border border-white/20 rounded text-white/80 font-mono"
+                          />
+                          <button
+                            onClick={copyLink}
+                            disabled={!shareableLink}
+                            className="px-3 py-2 bg-blue-500 hover:bg-blue-600 rounded transition flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {linkCopied ? (
+                              <>
+                                <CheckCircle className="w-4 h-4" />
+                                <span className="text-xs">Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <FaCopy className="w-3 h-3" />
+                                <span className="text-xs">Copy</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <p className="text-xs text-white/60">
+                          Share this link with players to let them join your quiz lobby
+                        </p>
+                        {shareableLink && (
+                          <div className="mt-3 p-2 bg-green-500/20 border border-green-500/50 rounded text-xs text-green-300">
+                            ✅ Lobby link ready! Share with your players.
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                   
                   {/* Quiz ID Display */}
                   <div className="bg-white/10 border border-white/20 rounded-lg p-4">
@@ -626,7 +772,10 @@ export default function Dashboard() {
                       {quizId || "Generating..."}
                     </p>
                     <p className="text-xs text-white/60 mt-1">
-                      Players can also join using this ID directly
+                      {gameMode === "singleplayer" 
+                        ? "Your unique quiz session ID" 
+                        : "Players can also join using this ID directly"
+                      }
                     </p>
                   </div>
                 </div>
@@ -634,14 +783,25 @@ export default function Dashboard() {
               
               {/* Action Buttons */}
               <div className="flex justify-center items-center mt-8 gap-4">
-                <button
-                  onClick={goToLobby}
-                  className="px-10 py-3 bg-emerald-400 text-black font-semibold rounded-full hover:bg-emerald-300 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  disabled={!generatedQuiz || generatedQuiz.length === 0}
-                >
-                  <FaUsers className="text-lg" />
-                  Go to Lobby ({generatedQuiz?.length || 0} questions ready)
-                </button>
+                {gameMode === "singleplayer" ? (
+                  <button
+                    onClick={startSinglePlayerQuiz}
+                    className="px-10 py-3 bg-emerald-400 text-black font-semibold rounded-full hover:bg-emerald-300 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    disabled={!generatedQuiz || generatedQuiz.length === 0}
+                  >
+                    <FaPlay className="text-lg" />
+                    Start Quiz ({generatedQuiz?.length || 0} questions)
+                  </button>
+                ) : (
+                  <button
+                    onClick={goToLobby}
+                    className="px-10 py-3 bg-emerald-400 text-black font-semibold rounded-full hover:bg-emerald-300 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    disabled={!generatedQuiz || generatedQuiz.length === 0}
+                  >
+                    <FaUsers className="text-lg" />
+                    Go to Lobby ({generatedQuiz?.length || 0} questions ready)
+                  </button>
+                )}
               </div>
               
               {error && (

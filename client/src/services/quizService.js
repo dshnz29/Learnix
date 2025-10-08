@@ -104,6 +104,18 @@ export class QuizService {
       return { id: docRef.id, ...cleanedQuizDoc };
     } catch (error) {
       console.error('❌ Error storing quiz:', error);
+      
+      // Handle blocked requests gracefully
+      if (error.message?.includes('ERR_BLOCKED_BY_CLIENT') || 
+          error.code === 'failed-precondition' ||
+          error.toString().includes('blocked')) {
+        console.warn('🚫 Request blocked by browser extension. Quiz will work locally.');
+        
+        // Generate a local ID and return quiz data for local use
+        const localId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return { id: localId, ...cleanedQuizDoc };
+      }
+      
       throw new Error(`Failed to store quiz: ${error.message}`);
     }
   }
